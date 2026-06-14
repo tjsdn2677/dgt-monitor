@@ -481,8 +481,21 @@ main {
     }
 
     .qc-details summary {
+         list-style: none;
+    list-style-type: none;
         height: 32px;       /* 38 → 32 */
         font-size: 12px;    /* 13 → 12 */
         border-radius: 10px;
     }
+    .qc-details summary::marker {
+    content: "";
+}
+
+.qc-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.qc-details summary::before {
+    content: none !important;
+}
 }
