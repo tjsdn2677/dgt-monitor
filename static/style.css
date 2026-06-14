@@ -417,62 +417,59 @@ main {
 }
 
 @media (max-width: 500px) {
-    body{
+
+    body {
         font-size: 12px;
     }
-     .berth-grid {
+
+    .berth-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 6px;
     }
 
-    .card {
-        padding: 6px;
-    }
-
     .berth-card {
-        min-height: 240px;
-        padding: 10px;
-        border-radius: 16px;
+        min-height: 210px;
+        padding: 8px;
     }
 
     .card-head h3 {
-        font-size: 21px;
+        font-size: 18px;
     }
 
     .card-head h4 {
-        font-size: 14px;
-        margin-top: 8px;
+        font-size: 12px;
+        margin-top: 4px;
     }
 
     .ship-code {
-        font-size: 11px;
+        font-size: 10px;
     }
 
     .status,
     .qc-badge {
         font-size: 10px;
-        padding: 4px 6px;
+        padding: 3px 5px;   /* 추가 */
     }
 
     .progress-area {
-        margin-top: 12px;
+        margin-top: 8px;    /* 12 → 8 */
     }
 
     .progress-label b {
-        font-size: 15px;
+        font-size: 13px;    /* 15 → 13 */
     }
 
     .work-summary {
-        margin-top: 12px;
-        gap: 4px;
+        margin-top: 8px;    /* 12 → 8 */
+        gap: 3px;           /* 4 → 3 */
     }
 
     .work-summary div {
-        padding: 6px 4px;
+        padding: 4px 3px;   /* 6x4 → 4x3 */
     }
 
     .work-summary span {
-        font-size: 10px;
+        font-size: 9px;     /* 10 → 9 */
     }
 
     .work-summary b {
@@ -480,12 +477,12 @@ main {
     }
 
     .qc-details {
-        padding-top: 12px;
+        padding-top: 8px;   /* 12 → 8 */
     }
 
     .qc-details summary {
-        height: 38px;
-        font-size: 13px;
-        border-radius: 12px;
+        height: 32px;       /* 38 → 32 */
+        font-size: 12px;    /* 13 → 12 */
+        border-radius: 10px;
     }
 }
