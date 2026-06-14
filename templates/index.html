@@ -9,21 +9,43 @@
 <body>
 
 <header>
-    <h1>DGT Monitor</h1>
-    <p>동원터미널 작업현황</p>
-    <p class="time">마지막 갱신 : {{ now }}</p>
+    <button class="icon-btn">☰</button>
+
+    <div>
+        <h1>DGT Monitor</h1>
+        <p>동원터미널 작업현황</p>
+        <div class="live-row">
+            <span>◷</span>
+            <span class="time">마지막 갱신 : {{ now }}</span>
+            <span class="dot"></span>
+            <span>실시간 업데이트</span>
+        </div>
+    </div>
+
+    <button class="icon-btn" onclick="updateData()">↻</button>
 </header>
 
-<section class="berth-grid" id="berthGrid"></section>
+<main>
+    <section class="section-card">
+        <div class="section-title">
+            <h2>⚓ 선석 작업 현황</h2>
+        </div>
 
-<section class="schedule-box">
-    <h2>접안 예정</h2>
-    <div id="scheduleList"></div>
-</section>
+        <section class="berth-grid" id="berthGrid"></section>
+    </section>
+
+    <section class="schedule-box">
+        <div class="section-title">
+            <h2>📅 접안 예정</h2>
+        </div>
+        <div id="scheduleList"></div>
+    </section>
+</main>
 
 <script>
 let previousBerths = {{ berths|tojson }};
 let initialSchedules = {{ schedules|tojson }};
+let openQcSet = new Set();
 
 function cleanText(value) {
     if (!value) return "-";
@@ -37,6 +59,42 @@ function formatShip(value) {
 function isEmptyShip(value) {
     const text = formatShip(value).trim();
     return !text || text === "-" || text === "대기중" || text === "없음" || text === "null" || text === "undefined";
+}
+
+function splitShipCode(value) {
+    const code = cleanText(value);
+    if (!code || code === "-") return { code: "-", voyage: "-" };
+
+    const parts = code.split("-");
+    return {
+        code: parts[0] || "-",
+        voyage: parts[1] || "-"
+    };
+}
+
+function flipPair(value) {
+    if (!value || value === "-") return "0 / 0";
+
+    const parts = String(value).split("/").map(v => v.trim());
+
+    if (parts.length !== 2) return value;
+
+    const done = parts[0];
+    const total = parts[1];
+
+    return `${total} / ${done}`;
+}
+
+function remainText(value) {
+    if (!value || value === "-") return "0 / 0";
+
+    const unload = value.match(/양하\s*([0-9]+)/);
+    const load = value.match(/적하\s*([0-9]+)/);
+
+    const u = unload ? unload[1] : "0";
+    const l = load ? load[1] : "0";
+
+    return `${u} / ${l}`;
 }
 
 function getHourRange() {
@@ -60,10 +118,16 @@ function getChangeBadge(oldBerth, qcNo, field, newValue) {
 
     const oldNum = parseInt(oldQc[field]);
     const newNum = parseInt(newValue);
+
     if (isNaN(oldNum) || isNaN(newNum)) return "";
 
     const diff = newNum - oldNum;
-    return diff > 0 ? `<span class="change-badge">+${diff}</span>` : "";
+
+    if (diff > 0) {
+        return `<span class="change-badge">+${diff}</span>`;
+    }
+
+    return "";
 }
 
 function renderSchedules(schedules) {
@@ -78,8 +142,19 @@ function renderSchedules(schedules) {
     schedules.forEach(item => {
         list.innerHTML += `
             <div class="schedule-item">
-                <span class="schedule-time">${cleanText(item.date)} ${cleanText(item.time)}</span>
-                <span class="schedule-ship">${formatShip(item.ship)}</span>
+                <div class="schedule-time">
+                    <b>${cleanText(item.date)}</b>
+                    <span>${cleanText(item.time)}</span>
+                </div>
+
+                <span class="schedule-dot"></span>
+
+                <div class="schedule-ship">
+                    ${formatShip(item.ship)}
+                    <small>${cleanText(item.ship_code)}</small>
+                </div>
+
+                <span class="schedule-badge">접안 예정</span>
             </div>
         `;
     });
@@ -96,95 +171,135 @@ function renderBerths(berths) {
             ? previousBerths.find(b => b.name === berth.name)
             : null;
 
-        if ((!berth.qc_list || berth.qc_list.length === 0) && oldBerth && oldBerth.qc_list) {
+        const waiting = isEmptyShip(berth.ship);
+
+        if (waiting) {
+            berth.qc_list = [];
+            berth.qc = "-";
+        } else if (
+            (!berth.qc_list || berth.qc_list.length === 0) &&
+            oldBerth &&
+            oldBerth.qc_list &&
+            oldBerth.qc_list.length > 0
+        ) {
             berth.qc_list = oldBerth.qc_list;
         }
 
-        const waiting = isEmptyShip(berth.ship);
-        const statusClass = waiting ? "wait" : "work";
+        const codeInfo = splitShipCode(berth.ship_code);
         const statusText = waiting ? "대기중" : "작업중";
+        const statusClass = waiting ? "wait" : "work";
+        const openAttr = openQcSet.has(berth.name) ? "open" : "";
 
         let qcHtml = "";
 
         if (berth.qc_list && berth.qc_list.length) {
-            const qcNames = berth.qc_list.map(q => q.qc).join(" · ");
-
             qcHtml = `
-                <details class="qc-details">
-                    <summary>QC ${berth.qc || berth.qc_list.length + "G"} <span>${qcNames}</span></summary>
+                <details class="qc-details" data-berth="${berth.name}" ${openAttr}>
+                    <summary>
+                        <span>☷ 상세 보기</span>
+                        <b>›</b>
+                    </summary>
 
                     <div class="qc-box">
+                        <div class="qc-title">QC별 작업현황</div>
+
                         ${berth.qc_list.map(qc => `
                             <div class="qc-card">
-                                <div class="qc-header">
+                                <div class="qc-head">
                                     <b>${qc.qc}호기</b>
                                     <span>${hourRange} +${qc.hourly_count ?? 0}</span>
                                 </div>
 
                                 <div class="qc-line">
                                     <span>양하</span>
-                                    <b>${qc.unload_total ?? "-"} / ${qc.unload_done ?? "-"} / ${qc.unload_remain ?? "-"}
-                                    ${getChangeBadge(oldBerth, qc.qc, "unload_done", qc.unload_done)}</b>
+                                    <b>
+                                        ${qc.unload_total ?? "-"} / ${qc.unload_done ?? "-"} / ${qc.unload_remain ?? "-"}
+                                        ${getChangeBadge(oldBerth, qc.qc, "unload_done", qc.unload_done)}
+                                    </b>
                                 </div>
 
                                 <div class="qc-line">
                                     <span>적하</span>
-                                    <b>${qc.load_total ?? "-"} / ${qc.load_done ?? "-"} / ${qc.load_remain ?? "-"}
-                                    ${getChangeBadge(oldBerth, qc.qc, "load_done", qc.load_done)}</b>
+                                    <b>
+                                        ${qc.load_total ?? "-"} / ${qc.load_done ?? "-"} / ${qc.load_remain ?? "-"}
+                                        ${getChangeBadge(oldBerth, qc.qc, "load_done", qc.load_done)}
+                                    </b>
                                 </div>
                             </div>
                         `).join("")}
                     </div>
                 </details>
             `;
-        } else if (berth.qc && berth.qc !== "-") {
-            qcHtml = `<div class="simple-qc">QC ${berth.qc}</div>`;
         } else {
-            qcHtml = `<div class="empty-berth">현재 작업 선박 없음</div>`;
+            qcHtml = `
+                <details class="qc-details" data-berth="${berth.name}" ${openAttr}>
+                    <summary>
+                        <span>☷ 상세 보기</span>
+                        <b>›</b>
+                    </summary>
+                    <div class="qc-box empty-detail">현재 배정 QC 없음</div>
+                </details>
+            `;
         }
 
         grid.innerHTML += `
-            <div class="card ${waiting ? "waiting-card" : ""}">
-                <div class="card-top">
+            <div class="berth-card ${waiting ? "waiting-card" : ""}">
+                <div class="card-head">
                     <div>
-                        <h2>${berth.name}</h2>
-                        <p class="ship">${waiting ? "대기중" : formatShip(berth.ship)}</p>
+                        <h3>${berth.name}</h3>
+                        <h4>${waiting ? "-" : formatShip(berth.ship)}</h4>
+                        <p class="ship-code">${codeInfo.code} <span>|</span> 항차: ${codeInfo.voyage}</p>
                     </div>
 
-                    <span class="status ${statusClass}">
-                        <i></i>${statusText}
-                    </span>
+                    <div class="badge-wrap">
+                        <span class="status ${statusClass}">${statusText}</span>
+                        <span class="qc-badge">${berth.qc || "-"}</span>
+                    </div>
                 </div>
 
-                ${qcHtml}
-
-                <div class="info-list">
-                    <div><span>접안예정</span><b>${cleanText(berth.eta)}</b></div>
-                    <div><span>접안시간</span><b>${cleanText(berth.alongside)}</b></div>
-                    <div><span>작업시작</span><b>${cleanText(berth.start)}</b></div>
-                    <div><span>출항예정</span><b>${cleanText(berth.etd)}</b></div>
-                </div>
-
-                <div class="work-list">
-                    <div><span>양하</span><b>${berth.unload}</b></div>
-                    <div><span>선적</span><b>${berth.load}</b></div>
-                    <div><span>쉬프팅</span><b>${berth.shift}</b></div>
-                </div>
-
-                <div class="bottom-area">
-                    <div class="remain-row">
-                        <span>잔여 BOX</span>
-                        <b>${berth.remain}</b>
+                <div class="progress-area">
+                    <div class="progress-label">
+                        <span>진행률</span>
+                        <b>${waiting ? 0 : berth.progress}%</b>
                     </div>
 
                     <div class="bar">
                         <div style="width:${waiting ? 0 : berth.progress}%"></div>
                     </div>
-
-                    <p class="percent">${waiting ? 0 : berth.progress}%</p>
                 </div>
+
+                <div class="work-summary">
+                    <div>
+                        <span>양하</span>
+                        <b>${waiting ? "0 / 0" : flipPair(berth.unload)}</b>
+                    </div>
+
+                    <div>
+                        <span>적하</span>
+                        <b>${waiting ? "0 / 0" : flipPair(berth.load)}</b>
+                    </div>
+
+                    <div>
+                        <span>잔량</span>
+                        <b>${waiting ? "0 / 0" : remainText(berth.remain)}</b>
+                    </div>
+                </div>
+
+                ${qcHtml}
             </div>
         `;
+    });
+
+    document.querySelectorAll(".qc-details").forEach(detail => {
+        detail.addEventListener("toggle", () => {
+            const berthName = detail.dataset.berth;
+
+            if (detail.open) {
+                openQcSet.add(berthName);
+            } else {
+                openQcSet.delete(berthName);
+            }
+        });
     });
 }
 
@@ -193,7 +308,8 @@ async function updateData() {
         const response = await fetch("/data");
         const data = await response.json();
 
-        document.querySelector(".time").innerText = "마지막 갱신 : " + data.now;
+        document.querySelector(".time").innerText =
+            "마지막 갱신 : " + data.now;
 
         renderBerths(data.berths || []);
         renderSchedules(data.schedules || []);
@@ -205,8 +321,8 @@ async function updateData() {
     }
 }
 
-renderBerths(previousBerths);
-renderSchedules(initialSchedules);
+renderBerths(previousBerths || []);
+renderSchedules(initialSchedules || []);
 updateData();
 
 setInterval(updateData, 10000);
