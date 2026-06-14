@@ -122,6 +122,15 @@ def data():
 
 
 if __name__ == "__main__":
+    # 서버 시작 전에 1번 먼저 수집
+    try:
+        berths = get_vessel_status()
+        latest_berths = add_hourly_count(berths)
+        latest_schedules = get_berth_schedule()
+        latest_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        print("초기 수집 오류:", e)
+
     collector_thread = threading.Thread(
         target=background_collector,
         daemon=True
@@ -129,10 +138,4 @@ if __name__ == "__main__":
     collector_thread.start()
 
     port = int(os.environ.get("PORT", 10000))
-
-    app.run(
-        host="0.0.0.0",
-        port=port,
-        debug=False,
-        use_reloader=False
-    )
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
