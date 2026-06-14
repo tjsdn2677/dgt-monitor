@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DGT Monitor</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+    <h1>DGT Monitor</h1>
+    <p>동원터미널 작업현황</p>
+    <p class="time">마지막 갱신 : {{ now }}</p>
+</header>
+
+<section class="berth-grid" id="berthGrid"></section>
+
+<section class="schedule-box">
+    <h2>접안 예정</h2>
+    <div id="scheduleList"></div>
+</section>
+
+<script>
+let previousBerths = {{ berths|tojson }};
+let initialSchedules = {{ schedules|tojson }};
+
+function cleanText(value) {
+    if (!value) return "-";
+    return String(value).replace(/\/20\d{2}/g, "").replace(" 00:00:00", "");
+}
+
+function formatShip(value) {
+    return cleanText(value);
+}
+
+function isEmptyShip(value) {
+    const text = formatShip(value).trim();
+    return !text || text === "-" || text === "대기중" || text === "없음" || text === "null" || text === "undefined";
+}
+
+function getHourRange() {
+    const end = new Date();
+    const start = new Date(end.getTime() - 60 * 60 * 1000);
+
+    const format = (date) => {
+        const h = String(date.getHours()).padStart(2, "0");
+        const m = String(date.getMinutes()).padStart(2, "0");
+        return `${h}:${m}`;
+    };
+
+    return `${format(start)} ~ ${format(end)}`;
+}
+
+function getChangeBadge(oldBerth, qcNo, field, newValue) {
+    if (!oldBerth || !oldBerth.qc_list) return "";
+
+    const oldQc = oldBerth.qc_list.find(q => q.qc === qcNo);
+    if (!oldQc) return "";
+
+    const oldNum = parseInt(oldQc[field]);
+    const newNum = parseInt(newValue);
+    if (isNaN(oldNum) || isNaN(newNum)) return "";
+
+    const diff = newNum - oldNum;
+    return diff > 0 ? `<span class="change-badge">+${diff}</span>` : "";
+}
+
+function renderSchedules(schedules) {
+    const list = document.getElementById("scheduleList");
+    list.innerHTML = "";
+
+    if (!schedules || schedules.length === 0) {
+        list.innerHTML = `<p class="empty-schedule">접안 예정 없음</p>`;
+        return;
+    }
+
+    schedules.forEach(item => {
+        list.innerHTML += `
+            <div class="schedule-item">
+                <span class="schedule-time">${cleanText(item.date)} ${cleanText(item.time)}</span>
+                <span class="schedule-ship">${formatShip(item.ship)}</span>
+            </div>
+        `;
+    });
+}
+
+function renderBerths(berths) {
+    const grid = document.getElementById("berthGrid");
+    grid.innerHTML = "";
+
+    const hourRange = getHourRange();
+
+    berths.forEach(berth => {
+        const oldBerth = previousBerths
+            ? previousBerths.find(b => b.name === berth.name)
+            : null;
+
+        if ((!berth.qc_list || berth.qc_list.length === 0) && oldBerth && oldBerth.qc_list) {
+            berth.qc_list = oldBerth.qc_list;
+        }
+
+        const waiting = isEmptyShip(berth.ship);
+        const statusClass = waiting ? "wait" : "work";
+        const statusText = waiting ? "대기중" : "작업중";
+
+        let qcHtml = "";
+
+        if (berth.qc_list && berth.qc_list.length) {
+            const qcNames = berth.qc_list.map(q => q.qc).join(" · ");
+
+            qcHtml = `
+                <details class="qc-details">
+                    <summary>QC ${berth.qc || berth.qc_list.length + "G"} <span>${qcNames}</span></summary>
+
+                    <div class="qc-box">
+                        ${berth.qc_list.map(qc => `
+                            <div class="qc-card">
+                                <div class="qc-header">
+                                    <b>${qc.qc}호기</b>
+                                    <span>${hourRange} +${qc.hourly_count ?? 0}</span>
+                                </div>
+
+                                <div class="qc-line">
+                                    <span>양하</span>
+                                    <b>${qc.unload_total ?? "-"} / ${qc.unload_done ?? "-"} / ${qc.unload_remain ?? "-"}
+                                    ${getChangeBadge(oldBerth, qc.qc, "unload_done", qc.unload_done)}</b>
+                                </div>
+
+                                <div class="qc-line">
+                                    <span>적하</span>
+                                    <b>${qc.load_total ?? "-"} / ${qc.load_done ?? "-"} / ${qc.load_remain ?? "-"}
+                                    ${getChangeBadge(oldBerth, qc.qc, "load_done", qc.load_done)}</b>
+                                </div>
+                            </div>
+                        `).join("")}
+                    </div>
+                </details>
+            `;
+        } else if (berth.qc && berth.qc !== "-") {
+            qcHtml = `<div class="simple-qc">QC ${berth.qc}</div>`;
+        } else {
+            qcHtml = `<div class="empty-berth">현재 작업 선박 없음</div>`;
+        }
+
+        grid.innerHTML += `
+            <div class="card ${waiting ? "waiting-card" : ""}">
+                <div class="card-top">
+                    <div>
+                        <h2>${berth.name}</h2>
+                        <p class="ship">${waiting ? "대기중" : formatShip(berth.ship)}</p>
+                    </div>
+
+                    <span class="status ${statusClass}">
+                        <i></i>${statusText}
+                    </span>
+                </div>
+
+                ${qcHtml}
+
+                <div class="info-list">
+                    <div><span>접안예정</span><b>${cleanText(berth.eta)}</b></div>
+                    <div><span>접안시간</span><b>${cleanText(berth.alongside)}</b></div>
+                    <div><span>작업시작</span><b>${cleanText(berth.start)}</b></div>
+                    <div><span>출항예정</span><b>${cleanText(berth.etd)}</b></div>
+                </div>
+
+                <div class="work-list">
+                    <div><span>양하</span><b>${berth.unload}</b></div>
+                    <div><span>선적</span><b>${berth.load}</b></div>
+                    <div><span>쉬프팅</span><b>${berth.shift}</b></div>
+                </div>
+
+                <div class="bottom-area">
+                    <div class="remain-row">
+                        <span>잔여 BOX</span>
+                        <b>${berth.remain}</b>
+                    </div>
+
+                    <div class="bar">
+                        <div style="width:${waiting ? 0 : berth.progress}%"></div>
+                    </div>
+
+                    <p class="percent">${waiting ? 0 : berth.progress}%</p>
+                </div>
+            </div>
+        `;
+    });
+}
+
+async function updateData() {
+    try {
+        const response = await fetch("/data");
+        const data = await response.json();
+
+        document.querySelector(".time").innerText = "마지막 갱신 : " + data.now;
+
+        renderBerths(data.berths || []);
+        renderSchedules(data.schedules || []);
+
+        previousBerths = data.berths || [];
+
+    } catch (error) {
+        console.error("갱신 실패:", error);
+    }
+}
+
+renderBerths(previousBerths);
+renderSchedules(initialSchedules);
+updateData();
+
+setInterval(updateData, 10000);
+</script>
+
+</body>
+</html>
