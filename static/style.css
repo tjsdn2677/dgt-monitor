@@ -417,9 +417,16 @@ main {
 }
 
 @media (max-width: 500px) {
+    body{
+        font-size: 12px;
+    }
      .berth-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
+        gap: 6px;
+    }
+
+    .card {
+        padding: 6px;
     }
 
     .berth-card {
