@@ -6,7 +6,7 @@ import time
 import scraper
 import os   
 
-print("사용 중인 scraper 위치:", scraper.__file__)
+
 
 app = Flask(__name__)
 
