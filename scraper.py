@@ -179,8 +179,21 @@ def parse_vessel_status(text):
         start = section[5] if len(section) > 5 else "-"
         etd = section[6] if len(section) > 6 else "-"
 
+        qc_list = parse_qc_list(section)
+
+        # 작업 여부는 선박코드 + QC + 진행률을 같이 보고 판단
         progress_num = int(progress.replace("%", "")) if "%" in progress else 0
-        is_wait = ship_code == "-"
+
+        empty_ship_codes = ["-", "", "대기중", "없음", "null", "None"]
+        is_wait = ship_code in empty_ship_codes and not qc_list
+
+        if is_wait:
+            progress_num = 0
+            ship_name = "대기중"
+            ship_code_display = "-"
+        else:
+            ship_name = display_ship(ship_code)
+            ship_code_display = display_code(ship_code)
 
         unload_total = "-"
         load_total = "-"
@@ -194,8 +207,6 @@ def parse_vessel_status(text):
                 total = m.group(3)
                 break
 
-        qc_list = parse_qc_list(section)
-
         unload_done_sum = sum(safe_int(qc["unload_done"]) for qc in qc_list)
         load_done_sum = sum(safe_int(qc["load_done"]) for qc in qc_list)
         unload_remain_sum = sum(safe_int(qc["unload_remain"]) for qc in qc_list)
@@ -203,20 +214,20 @@ def parse_vessel_status(text):
 
         berths.append({
             "name": berth_name,
-            "ship": "대기중" if is_wait else display_ship(ship_code),
-            "ship_code": display_code(ship_code),
-            "qc": f"{len(qc_list)}G" if qc_list else "-",
-            "qc_list": qc_list,
-            "unload": f"{unload_done_sum} / {unload_total}" if not is_wait else "-",
-            "load": f"{load_done_sum} / {load_total}" if not is_wait else "-",
+            "ship": ship_name,
+            "ship_code": ship_code_display,
+            "qc": f"{len(qc_list)}G" if qc_list and not is_wait else "-",
+            "qc_list": qc_list if not is_wait else [],
+            "unload": f"{unload_done_sum} / {unload_total}" if not is_wait else "0 / -",
+            "load": f"{load_done_sum} / {load_total}" if not is_wait else "0 / -",
             "shift": "-",
-            "remain": f"양하 {unload_remain_sum} / 적하 {load_remain_sum}" if not is_wait else "-",
+            "remain": f"양하 {unload_remain_sum} / 적하 {load_remain_sum}" if not is_wait else "양하 0 / 적하 0",
             "progress": progress_num,
-            "status": "🔴 대기" if is_wait else "🟢 작업중",
-            "eta": eta,
-            "alongside": alongside,
-            "start": start,
-            "etd": etd,
+            "status": "대기중" if is_wait else "작업중",
+            "eta": eta if not is_wait else "-",
+            "alongside": alongside if not is_wait else "-",
+            "start": start if not is_wait else "-",
+            "etd": etd if not is_wait else "-",
             "total": total
         })
 
