@@ -31,7 +31,7 @@ def get_qc_done_total(qc):
 def add_hourly_count(berths):
     global history
 
-    now = datetime.now()
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
 
     history.append({
         "time": now,
@@ -88,7 +88,7 @@ def background_collector():
                 print(b["name"], b["ship"])
 
             # 접안 예정은 1분마다 갱신
-            if not latest_schedules or datetime.now().second < 10:
+            if not latest_schedules or datetime.now(ZoneInfo("Asia/Seoul")).second < 10:
                 latest_schedules = get_berth_schedule()
 
             print("DGT 데이터 수집 완료:", latest_time)
