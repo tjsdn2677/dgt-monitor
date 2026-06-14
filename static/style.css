@@ -416,78 +416,69 @@ main {
     font-weight: 800;
 }
 
-/* PC ONLY */
-@media (min-width: 801px) {
-    header {
-        height: 170px;
-        padding: 24px 24px 22px;
-        grid-template-columns: 54px 1fr 54px;
-    }
-
-    header h1 {
-        font-size: 34px;
-    }
-
-    .icon-btn {
-        width: 54px;
-        height: 54px;
-        font-size: 28px;
-    }
-
-    main {
-        max-width: 1180px;
-        margin: -24px auto 28px;
-        padding: 0 18px;
-    }
-
-    .section-card {
-        padding: 18px;
-    }
-
+@media (max-width: 800px) {
     .berth-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
+        gap: 8px;
     }
 
     .berth-card {
-        min-height: 360px;
-        padding: 22px;
-    }
-
-    .badge-wrap {
-        flex-direction: row;
+        min-height: 240px;
+        padding: 10px;
+        border-radius: 16px;
     }
 
     .card-head h3 {
-        font-size: 31px;
+        font-size: 21px;
     }
 
     .card-head h4 {
-        font-size: 22px;
+        font-size: 14px;
+        margin-top: 8px;
     }
 
     .ship-code {
-        font-size: 17px;
+        font-size: 11px;
     }
 
     .status,
     .qc-badge {
+        font-size: 10px;
+        padding: 4px 6px;
+    }
+
+    .progress-area {
+        margin-top: 12px;
+    }
+
+    .progress-label b {
         font-size: 15px;
-        padding: 7px 12px;
     }
 
-    .schedule-item {
-        grid-template-columns: 130px 16px 1fr auto;
-        min-height: 72px;
-        padding: 0 20px;
+    .work-summary {
+        margin-top: 12px;
+        gap: 4px;
     }
 
-    .schedule-badge {
-        display: inline-block;
-        padding: 7px 10px;
-        border-radius: 8px;
-        background: #e8f2ff;
-        color: #0066ff;
-        font-weight: 900;
+    .work-summary div {
+        padding: 6px 4px;
+    }
+
+    .work-summary span {
+        font-size: 10px;
+    }
+
+    .work-summary b {
+        font-size: 10px;
+    }
+
+    .qc-details {
+        padding-top: 12px;
+    }
+
+    .qc-details summary {
+        height: 38px;
+        font-size: 13px;
+        border-radius: 12px;
     }
 }
