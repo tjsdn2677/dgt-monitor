@@ -90,8 +90,8 @@ main {
 /* BERTH GRID */
 .berth-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
 }
 
 /* CARD */
@@ -416,8 +416,8 @@ main {
     font-weight: 800;
 }
 
-@media (max-width: 800px) {
-    .berth-grid {
+@media (max-width: 500px) {
+     .berth-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
     }
