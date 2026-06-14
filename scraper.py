@@ -54,8 +54,16 @@ def make_driver():
     options = Options()
     options.add_argument("--headless=new")
     options.add_argument("--window-size=1920,1080")
-    return webdriver.Chrome(options=options)
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--blink-settings=imagesEnabled=false")
 
+    driver = webdriver.Chrome(options=options)
+    driver.set_page_load_timeout(30)
+    driver.set_script_timeout(30)
+    return driver
 
 def extract_detail_value(text, label):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -237,28 +245,40 @@ def parse_vessel_status(text):
 def get_vessel_status():
     global VESSEL_NAME_CACHE
 
+    print("[1] 드라이버 생성 전")
     driver = make_driver()
+    print("[2] 드라이버 생성 완료")
 
     try:
+        print("[3] 선박명 맵 수집 시작")
         VESSEL_NAME_CACHE = scrape_vessel_name_map(driver)
+        print("[4] 선박명 맵 수집 완료:", len(VESSEL_NAME_CACHE))
 
-        print("현재 맵 확인:", VESSEL_NAME_CACHE)
-
+        print("[5] vesselStatus 접속 시작")
         driver.get("https://info.dgtbusan.com/DGT/esvc/vessel/vesselStatus")
+        print("[6] vesselStatus 접속 완료")
+
         time.sleep(5)
 
+        print("[7] body 읽기 시작")
         text = driver.find_element(By.TAG_NAME, "body").text
+        print("[8] body 읽기 완료:", len(text))
+
         berths = parse_vessel_status(text)
 
-        print("파싱 결과 선명:")
+        print("[9] 파싱 완료")
         for b in berths:
             print(b["ship"])
 
         return berths
 
-    finally:
-        driver.quit()
+    except Exception as e:
+        print("get_vessel_status 오류:", repr(e))
+        return []
 
+    finally:
+        print("[10] 드라이버 종료")
+        driver.quit()
 
 def get_berth_schedule():
     global VESSEL_NAME_CACHE
