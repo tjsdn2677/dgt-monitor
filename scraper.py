@@ -63,7 +63,9 @@ def make_driver():
     driver = webdriver.Chrome(options=options)
     driver.set_page_load_timeout(30)
     driver.set_script_timeout(30)
+
     return driver
+
 
 def extract_detail_value(text, label):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -79,7 +81,10 @@ def scrape_vessel_name_map(driver):
     vessel_map = {}
 
     try:
+        print("[MAP] berthScheduleG 접속 시작")
         driver.get("https://info.dgtbusan.com/DGT/esvc/vessel/berthScheduleG")
+        print("[MAP] berthScheduleG 접속 완료")
+
         time.sleep(2)
 
         detail_divs = driver.find_elements(By.XPATH, "//div[starts-with(@id, 'detail_')]")
@@ -116,13 +121,13 @@ def scrape_vessel_name_map(driver):
                     vessel_map[code] = vessel_name
 
             except Exception as e:
-                print("detail 파싱 오류:", e)
+                print("detail 파싱 오류:", repr(e))
                 continue
 
     except Exception as e:
-        print("선박명 맵 생성 오류:", e)
+        print("선박명 맵 생성 오류:", repr(e))
 
-    print("선박명 맵:", vessel_map)
+    print("선박명 맵 개수:", len(vessel_map))
     return vessel_map
 
 
@@ -167,7 +172,6 @@ def parse_qc_list(section_lines):
 def parse_vessel_status(text):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     berths = []
-
     berth_indexes = []
 
     for idx, line in enumerate(lines):
@@ -189,8 +193,10 @@ def parse_vessel_status(text):
 
         qc_list = parse_qc_list(section)
 
-        # 작업 여부는 선박코드 + QC + 진행률을 같이 보고 판단
-        progress_num = int(progress.replace("%", "")) if "%" in progress else 0
+        try:
+            progress_num = int(progress.replace("%", "")) if "%" in progress else 0
+        except:
+            progress_num = 0
 
         empty_ship_codes = ["-", "", "대기중", "없음", "null", "None"]
         is_wait = ship_code in empty_ship_codes and not qc_list
@@ -250,9 +256,12 @@ def get_vessel_status():
     print("[2] 드라이버 생성 완료")
 
     try:
-        print("[3] 선박명 맵 수집 시작")
-        VESSEL_NAME_CACHE = scrape_vessel_name_map(driver)
-        print("[4] 선박명 맵 수집 완료:", len(VESSEL_NAME_CACHE))
+        if not VESSEL_NAME_CACHE:
+            print("[3] 선박명 맵 수집 시작")
+            VESSEL_NAME_CACHE = scrape_vessel_name_map(driver)
+            print("[4] 선박명 맵 수집 완료:", len(VESSEL_NAME_CACHE))
+        else:
+            print("[3] 선박명 맵 캐시 사용:", len(VESSEL_NAME_CACHE))
 
         print("[5] vesselStatus 접속 시작")
         driver.get("https://info.dgtbusan.com/DGT/esvc/vessel/vesselStatus")
@@ -264,11 +273,12 @@ def get_vessel_status():
         text = driver.find_element(By.TAG_NAME, "body").text
         print("[8] body 읽기 완료:", len(text))
 
+        print("[9] 파싱 시작")
         berths = parse_vessel_status(text)
+        print("[10] 파싱 완료:", len(berths))
 
-        print("[9] 파싱 완료")
         for b in berths:
-            print(b["ship"])
+            print(b["name"], b["ship"])
 
         return berths
 
@@ -277,24 +287,32 @@ def get_vessel_status():
         return []
 
     finally:
-        print("[10] 드라이버 종료")
+        print("[11] 드라이버 종료")
         driver.quit()
+
 
 def get_berth_schedule():
     global VESSEL_NAME_CACHE
 
+    print("[S1] 스케줄 드라이버 생성")
     driver = make_driver()
 
     try:
         if not VESSEL_NAME_CACHE:
+            print("[S2] 선박명 맵 없음 → 새로 수집")
             VESSEL_NAME_CACHE = scrape_vessel_name_map(driver)
+        else:
+            print("[S2] 선박명 맵 캐시 사용:", len(VESSEL_NAME_CACHE))
 
+        print("[S3] berthScheduleG 접속 시작")
         driver.get("https://info.dgtbusan.com/DGT/esvc/vessel/berthScheduleG")
+        print("[S4] berthScheduleG 접속 완료")
+
         time.sleep(2)
 
         schedules = []
-
         detail_divs = driver.find_elements(By.XPATH, "//div[starts-with(@id, 'detail_')]")
+        print("[S5] 스케줄 detail 개수:", len(detail_divs))
 
         for div in detail_divs:
             try:
@@ -346,14 +364,20 @@ def get_berth_schedule():
                 })
 
             except Exception as e:
-                print("스케줄 파싱 오류:", e)
+                print("스케줄 파싱 오류:", repr(e))
                 continue
 
         schedules = sorted(schedules, key=lambda item: (item["date"], item["time"]))
+        print("[S6] 스케줄 파싱 완료:", len(schedules))
 
         return schedules[:14]
 
+    except Exception as e:
+        print("get_berth_schedule 오류:", repr(e))
+        return []
+
     finally:
+        print("[S7] 스케줄 드라이버 종료")
         driver.quit()
 
 
