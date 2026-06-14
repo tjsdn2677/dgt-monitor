@@ -80,7 +80,7 @@ def scrape_vessel_name_map(driver):
 
     try:
         driver.get("https://info.dgtbusan.com/DGT/esvc/vessel/berthScheduleG")
-        time.sleep(5)
+        time.sleep(2)
 
         detail_divs = driver.find_elements(By.XPATH, "//div[starts-with(@id, 'detail_')]")
         print("detail div 개수:", len(detail_divs))
@@ -258,7 +258,7 @@ def get_vessel_status():
         driver.get("https://info.dgtbusan.com/DGT/esvc/vessel/vesselStatus")
         print("[6] vesselStatus 접속 완료")
 
-        time.sleep(5)
+        time.sleep(2)
 
         print("[7] body 읽기 시작")
         text = driver.find_element(By.TAG_NAME, "body").text
@@ -290,7 +290,7 @@ def get_berth_schedule():
             VESSEL_NAME_CACHE = scrape_vessel_name_map(driver)
 
         driver.get("https://info.dgtbusan.com/DGT/esvc/vessel/berthScheduleG")
-        time.sleep(5)
+        time.sleep(2)
 
         schedules = []
 
