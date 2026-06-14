@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from scraper import get_vessel_status, get_berth_schedule
 import threading
 import time
@@ -80,7 +81,7 @@ def background_collector():
             berths = add_hourly_count(berths)
 
             latest_berths = berths
-            latest_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            latest_time = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M:%S")
 
             print("latest_berths 저장값:")
             for b in latest_berths:
@@ -127,7 +128,7 @@ if __name__ == "__main__":
         berths = get_vessel_status()
         latest_berths = add_hourly_count(berths)
         latest_schedules = get_berth_schedule()
-        latest_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        latest_time = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M:%S")
     except Exception as e:
         print("초기 수집 오류:", e)
 
